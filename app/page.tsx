@@ -21,6 +21,8 @@ export default function Home() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
+  const [remainingQuestions, setRemainingQuestions] = useState<number>(3);
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -40,7 +42,21 @@ export default function Home() {
         console.error('Error loading messages from localStorage:', error);
       }
     }
+
+    // Check remaining questions on mount
+    checkRemainingQuestions();
   }, []);
+
+  // Check remaining questions
+  const checkRemainingQuestions = async () => {
+    try {
+      const response = await fetch('/api/check-limit');
+      const data = await response.json();
+      setRemainingQuestions(data.remaining);
+    } catch (error) {
+      console.error('Error checking limit:', error);
+    }
+  };
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
@@ -79,6 +95,21 @@ export default function Home() {
   const handleSend = async (questionText?: string) => {
     const question = questionText || input.trim();
     if (!question || isLoading) return;
+
+    // Check rate limit first
+    try {
+      const limitCheck = await fetch('/api/check-limit', { method: 'POST' });
+      const limitData = await limitCheck.json();
+      
+      if (!limitData.allowed) {
+        setShowLimitModal(true);
+        return;
+      }
+      
+      setRemainingQuestions(limitData.remaining);
+    } catch (error) {
+      console.error('Error checking limit:', error);
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -210,6 +241,42 @@ export default function Home() {
         </div>
       )}
 
+      {/* Rate Limit Modal */}
+      {showLimitModal && (
+        <div className="fixed inset-0 bg-emerald-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border-2 border-amber-200 animate-slide-up">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-500 rounded-xl flex items-center justify-center shadow-md">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-emerald-900">Limite atteinte</h3>
+                <p className="text-sm text-amber-600">Version de test</p>
+              </div>
+            </div>
+            
+            <p className="text-emerald-800 mb-4 leading-relaxed">
+              Vous avez atteint la limite de <strong>3 questions</strong> pour cette session de test.
+            </p>
+            
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 mb-6">
+              <p className="text-sm text-amber-800">
+                💡 <strong>Astuce :</strong> Cette limitation est temporaire pour la version bêta. Contactez-nous pour un accès complet.
+              </p>
+            </div>
+            
+            <button
+              onClick={() => setShowLimitModal(false)}
+              className="w-full px-4 py-3 bg-gradient-to-br from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-medium rounded-xl transition-all shadow-md hover:shadow-lg"
+            >
+              Compris
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-emerald-100 shadow-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
@@ -225,18 +292,30 @@ export default function Home() {
             </div>
           </div>
           
-          {messages.length > 0 && (
-            <button
-              onClick={clearHistory}
-              className="flex items-center gap-2 px-3 py-2 text-xs text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg transition-colors"
-              title="Effacer l'historique"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          <div className="flex items-center gap-2">
+            {/* Questions Remaining Badge */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-50 to-amber-100 border-2 border-amber-200 rounded-lg">
+              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="hidden sm:inline">Effacer</span>
-            </button>
-          )}
+              <span className="text-xs font-bold text-amber-700">
+                {remainingQuestions}/3
+              </span>
+            </div>
+
+            {messages.length > 0 && (
+              <button
+                onClick={clearHistory}
+                className="flex items-center gap-2 px-3 py-2 text-xs text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg transition-colors"
+                title="Effacer l'historique"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span className="hidden sm:inline">Effacer</span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
