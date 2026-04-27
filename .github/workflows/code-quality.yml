@@ -38,6 +38,8 @@ jobs:
         run: |
           npm run build
           echo "📦 Build completed successfully"
+        env:
+          NEXT_PUBLIC_API_URL: https://molaraiche.app.n8n.cloud/webhook/ask
 
       - name: Security audit
         run: npm audit --audit-level=moderate
