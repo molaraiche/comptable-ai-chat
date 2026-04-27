@@ -33,7 +33,8 @@ This application implements several security measures to protect users and data:
 - ✅ No personal data collected
 - ✅ Chat history stored locally (browser localStorage)
 - ✅ No server-side message storage
-- ✅ No tracking or analytics
+- ✅ Privacy-focused analytics (Vercel Analytics - aggregated data only)
+- ✅ Performance monitoring (Vercel Speed Insights - no PII)
 
 ### 5. API Security
 
@@ -112,9 +113,10 @@ Before deploying to production:
 
 ## 📋 Security Audit Log
 
-| Date       | Version | Changes                         |
-| ---------- | ------- | ------------------------------- |
-| 2025-04-27 | 1.0.0   | Initial security implementation |
+| Date       | Version | Changes                                    |
+| ---------- | ------- | ------------------------------------------ |
+| 2026-04-27 | 1.1.0   | Added Vercel Analytics & Speed Insights    |
+| 2026-04-27 | 1.0.0   | Initial security implementation            |
 
 ## 🔄 Regular Maintenance
 
@@ -164,6 +166,6 @@ This application:
 
 ---
 
-**Last Updated**: April 27, 2025  
-**Version**: 1.0.0  
+**Last Updated**: April 27, 2026  
+**Version**: 1.1.0  
 **Maintained by**: [Molaraiche](https://molaraiche.com/)
