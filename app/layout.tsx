@@ -12,6 +12,12 @@ export const metadata: Metadata = {
   description: "Assistant comptable intelligent basé sur le Plan Comptable Marocain et la Loi de Finances. Posez vos questions en français ou en arabe.",
   keywords: ["comptabilité", "Maroc", "AI", "assistant", "fiscalité", "Plan Comptable Marocain"],
   authors: [{ name: "Comptable AI" }],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Comptable AI",
+  },
   openGraph: {
     title: "Comptable AI - Assistant Comptable Marocain",
     description: "Assistant comptable intelligent basé sur le Plan Comptable Marocain",

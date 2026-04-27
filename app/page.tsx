@@ -24,6 +24,8 @@ export default function Home() {
   const [remainingQuestions, setRemainingQuestions] = useState<number>(3);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -52,8 +54,32 @@ export default function Home() {
       setIsDarkMode(true);
     }
 
+    // Check if install prompt was dismissed
+    const installDismissed = localStorage.getItem('comptable-ai-install-dismissed');
+    if (installDismissed === 'true') {
+      setShowInstallPrompt(false);
+    }
+
     // Check remaining questions on mount
     checkRemainingQuestions();
+
+    // Listen for PWA install prompt
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      
+      // Only show if not dismissed
+      const dismissed = localStorage.getItem('comptable-ai-install-dismissed');
+      if (dismissed !== 'true') {
+        setShowInstallPrompt(true);
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
 
   // Save dark mode preference
@@ -221,6 +247,31 @@ export default function Home() {
     handleSend(question);
   };
 
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+
+    // Show the install prompt
+    deferredPrompt.prompt();
+
+    // Wait for the user's response
+    const { outcome } = await deferredPrompt.userChoice;
+
+    if (outcome === 'accepted') {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('User accepted the install prompt');
+      }
+    }
+
+    // Clear the deferred prompt
+    setDeferredPrompt(null);
+    setShowInstallPrompt(false);
+  };
+
+  const handleDismissInstall = () => {
+    setShowInstallPrompt(false);
+    localStorage.setItem('comptable-ai-install-dismissed', 'true');
+  };
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${
       isDarkMode 
@@ -297,6 +348,74 @@ export default function Home() {
             >
               Compris
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* PWA Install Prompt - Bottom Left */}
+      {showInstallPrompt && (
+        <div className="fixed bottom-4 left-4 z-50 animate-slide-up">
+          <div className={`rounded-2xl shadow-2xl border-2 p-4 max-w-sm transition-colors ${
+            isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-emerald-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              {/* App Icon */}
+              <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-xl flex items-center justify-center shadow-lg">
+                <svg className="w-7 h-7 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <h3 className={`font-bold text-sm mb-1 transition-colors ${
+                  isDarkMode ? 'text-emerald-100' : 'text-emerald-900'
+                }`}>
+                  Installer l'application
+                </h3>
+                <p className={`text-xs mb-3 transition-colors ${
+                  isDarkMode ? 'text-gray-400' : 'text-emerald-600'
+                }`}>
+                  Accédez rapidement à Comptable AI depuis votre écran d'accueil
+                </p>
+
+                {/* Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleInstallClick}
+                    className="flex-1 px-3 py-2 bg-gradient-to-br from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white text-xs font-medium rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    Installer
+                  </button>
+                  <button
+                    onClick={handleDismissInstall}
+                    className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                      isDarkMode
+                        ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
+                        : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                    }`}
+                  >
+                    Plus tard
+                  </button>
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={handleDismissInstall}
+                className={`flex-shrink-0 p-1 rounded-lg transition-colors ${
+                  isDarkMode
+                    ? 'text-gray-500 hover:text-gray-400 hover:bg-gray-700'
+                    : 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       )}
