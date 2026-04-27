@@ -5,6 +5,7 @@ Open-source chat interface for AI-powered Moroccan accounting assistant. Support
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Next.js](https://img.shields.io/badge/Next.js-16.2.4-black.svg)
+![CI/CD](https://github.com/molaraiche/comptable-ai-chat/workflows/CI%2FCD%20Pipeline/badge.svg)
 
 ## ✨ Features
 
@@ -142,15 +143,29 @@ Click the trash icon in the header to clear all conversation history (with confi
 
 ## 🚀 Deployment
 
-### Deploy to Vercel (Recommended)
+### Automated CI/CD
+
+This project includes automated CI/CD with GitHub Actions:
+
+- ✅ **Automatic deployment** to Vercel on push to master
+- ✅ **Preview deployments** for pull requests
+- ✅ **Automated testing** and linting
+- ✅ **Code quality checks**
+
+See [.github/DEPLOYMENT.md](.github/DEPLOYMENT.md) for setup instructions.
+
+### Quick Deploy to Vercel
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/molaraiche/comptable-ai-chat)
 
 1. Click the button above
 2. Connect your GitHub account
-3. Deploy!
+3. Add environment variable: `NEXT_PUBLIC_API_URL`
+4. Deploy!
 
-### Build for Production
+### Manual Deployment
+
+#### Build for Production
 
 ```bash
 npm run build
