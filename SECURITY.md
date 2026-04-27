@@ -122,9 +122,9 @@ Before deploying to production:
 
 ### Weekly
 
-- [ ] Check for dependency updates
-- [ ] Review rate limit logs
-- [ ] Monitor error logs
+- [x] Check for dependency updates
+- [x] Review rate limit logs
+- [x] Monitor error logs
 
 ### Monthly
 
