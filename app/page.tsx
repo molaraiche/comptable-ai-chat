@@ -23,6 +23,7 @@ export default function Home() {
   const [showClearModal, setShowClearModal] = useState(false);
   const [remainingQuestions, setRemainingQuestions] = useState<number>(3);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -39,13 +40,31 @@ export default function Home() {
         }));
         setMessages(messagesWithDates);
       } catch (error) {
-        console.error('Error loading messages from localStorage:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error loading messages from localStorage:', error);
+        }
       }
+    }
+
+    // Load dark mode preference
+    const savedDarkMode = localStorage.getItem('comptable-ai-dark-mode');
+    if (savedDarkMode === 'true') {
+      setIsDarkMode(true);
     }
 
     // Check remaining questions on mount
     checkRemainingQuestions();
   }, []);
+
+  // Save dark mode preference
+  useEffect(() => {
+    localStorage.setItem('comptable-ai-dark-mode', isDarkMode.toString());
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   // Check remaining questions
   const checkRemainingQuestions = async () => {
@@ -54,8 +73,14 @@ export default function Home() {
       const data = await response.json();
       setRemainingQuestions(data.remaining);
     } catch (error) {
-      console.error('Error checking limit:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error checking limit:', error);
+      }
     }
+  };
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
   };
 
   // Save messages to localStorage whenever they change
@@ -125,9 +150,6 @@ export default function Home() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'YOUR_API_ENDPOINT_HERE';
       
-      console.log('Sending request to:', apiUrl);
-      console.log('Question:', question);
-      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -136,8 +158,6 @@ export default function Home() {
         body: JSON.stringify({ question }),
         mode: 'cors',
       });
-
-      console.log('Response status:', response.status);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -149,12 +169,10 @@ export default function Home() {
       
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
-        console.log('Response data (JSON):', data);
         responseText = data.response || data.answer || data.message || 'Désolé, je n\'ai pas pu traiter votre demande.';
       } else {
         // Handle plain text response
         responseText = await response.text();
-        console.log('Response data (text):', responseText);
       }
       
       const aiMessage: Message = {
@@ -166,14 +184,16 @@ export default function Home() {
 
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
-      console.error('Error details:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error details:', error);
+      }
       
       let errorText = 'Désolé, une erreur s\'est produite. ';
       
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        errorText += 'Impossible de se connecter au serveur. Vérifiez votre connexion internet ou contactez l\'administrateur.';
+        errorText += 'Impossible de se connecter au serveur. Vérifiez votre connexion internet.';
       } else if (error instanceof Error) {
-        errorText += error.message;
+        errorText += 'Veuillez réessayer.';
       } else {
         errorText += 'Veuillez réessayer.';
       }
@@ -202,7 +222,11 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-amber-50/20 flex flex-col">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDarkMode 
+        ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900' 
+        : 'bg-gradient-to-br from-slate-50 via-emerald-50/30 to-amber-50/20'
+    } flex flex-col`}>
       {/* Clear History Modal */}
       {showClearModal && (
         <div className="fixed inset-0 bg-emerald-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
@@ -278,7 +302,11 @@ export default function Home() {
       )}
 
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-emerald-100 shadow-sm sticky top-0 z-10">
+      <header className={`backdrop-blur-md border-b shadow-sm sticky top-0 z-10 transition-colors duration-300 ${
+        isDarkMode 
+          ? 'bg-gray-900/95 border-gray-700' 
+          : 'bg-white/80 border-emerald-100'
+      }`}>
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-xl flex items-center justify-center shadow-lg">
@@ -286,35 +314,86 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-emerald-900">Comptable AI</h1>
-              <p className="text-xs text-emerald-600">Assistant Comptable Marocain</p>
+            <div className="hidden sm:block">
+              <h1 className={`text-xl font-bold transition-colors ${isDarkMode ? 'text-emerald-100' : 'text-emerald-900'}`}>
+                Comptable AI
+              </h1>
+              <p className={`text-xs transition-colors ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                Assistant Comptable Marocain
+              </p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            {/* Questions Remaining Badge */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-50 to-amber-100 border-2 border-amber-200 rounded-lg">
-              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-xs font-bold text-amber-700">
-                {remainingQuestions}/3
-              </span>
-            </div>
-
+            {/* Delete Button */}
             {messages.length > 0 && (
               <button
                 onClick={clearHistory}
-                className="flex items-center gap-2 px-3 py-2 text-xs text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg transition-colors"
+                className={`flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors ${
+                  isDarkMode
+                    ? 'text-emerald-300 hover:text-emerald-200 hover:bg-gray-800'
+                    : 'text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50'
+                }`}
                 title="Effacer l'historique"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-                <span className="hidden sm:inline">Effacer</span>
+                <span className="hidden md:inline">Effacer</span>
               </button>
             )}
+
+            {/* Questions Remaining Badge */}
+            <div 
+              className={`relative group flex items-center gap-1.5 px-2 sm:px-3 py-1.5 border-2 rounded-lg transition-colors cursor-help ${
+                isDarkMode
+                  ? 'bg-gradient-to-r from-amber-900/40 to-amber-800/40 border-amber-600'
+                  : 'bg-gradient-to-r from-amber-50 to-amber-100 border-amber-200'
+              }`}
+              title="Questions restantes"
+            >
+              <svg className="w-4 h-4 text-amber-600 sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className={`text-xs font-bold transition-colors ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                {remainingQuestions}/3
+              </span>
+              
+              {/* Tooltip */}
+              <div className={`absolute top-full right-0 mt-2 px-3 py-2 rounded-lg shadow-lg text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 ${
+                isDarkMode
+                  ? 'bg-gray-800 text-gray-100 border border-gray-700'
+                  : 'bg-white text-gray-800 border border-gray-200'
+              }`}>
+                <div className="font-medium mb-1">Questions restantes : {remainingQuestions}/3</div>
+                <div className="text-xs opacity-75">Réinitialisation dans 72h</div>
+                {/* Arrow */}
+                <div className={`absolute -top-1 right-4 w-2 h-2 rotate-45 ${
+                  isDarkMode ? 'bg-gray-800 border-l border-t border-gray-700' : 'bg-white border-l border-t border-gray-200'
+                }`}></div>
+              </div>
+            </div>
+
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={toggleDarkMode}
+              className={`p-2 rounded-lg transition-all ${
+                isDarkMode 
+                  ? 'bg-gray-800 hover:bg-gray-700 text-amber-400' 
+                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+              }`}
+              title={isDarkMode ? 'Mode clair' : 'Mode sombre'}
+            >
+              {isDarkMode ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
       </header>
@@ -330,28 +409,42 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-emerald-900">Bienvenue sur Comptable AI</h2>
-                <p className="text-emerald-700 max-w-md">
+                <h2 className={`text-2xl font-bold transition-colors ${isDarkMode ? 'text-emerald-100' : 'text-emerald-900'}`}>
+                  Bienvenue sur Comptable AI
+                </h2>
+                <p className={`max-w-md transition-colors ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
                   Votre assistant comptable intelligent basé sur le Plan Comptable Marocain
                 </p>
               </div>
 
               <div className="w-full max-w-2xl space-y-3">
-                <p className="text-sm font-medium text-emerald-800 text-center">Questions suggérées :</p>
+                <p className={`text-sm font-medium text-center transition-colors ${isDarkMode ? 'text-emerald-300' : 'text-emerald-800'}`}>
+                  Questions suggérées :
+                </p>
                 <div className="grid gap-3">
                   {EXAMPLE_QUESTIONS.map((question, index) => (
                     <button
                       key={index}
                       onClick={() => handleExampleClick(question)}
-                      className="p-4 bg-white hover:bg-emerald-50 border-2 border-emerald-200 hover:border-emerald-400 rounded-xl text-left transition-all duration-200 shadow-sm hover:shadow-md group"
+                      className={`p-4 border-2 rounded-xl text-left transition-all duration-200 shadow-sm hover:shadow-md group ${
+                        isDarkMode
+                          ? 'bg-gray-800 hover:bg-gray-750 border-gray-700 hover:border-emerald-600'
+                          : 'bg-white hover:bg-emerald-50 border-emerald-200 hover:border-emerald-400'
+                      }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-emerald-100 group-hover:bg-emerald-200 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                          isDarkMode
+                            ? 'bg-gray-700 group-hover:bg-gray-600'
+                            : 'bg-emerald-100 group-hover:bg-emerald-200'
+                        }`}>
                           <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
-                        <span className="text-emerald-900 font-medium">{question}</span>
+                        <span className={`font-medium transition-colors ${isDarkMode ? 'text-emerald-100' : 'text-emerald-900'}`}>
+                          {question}
+                        </span>
                       </div>
                     </button>
                   ))}
@@ -387,9 +480,11 @@ export default function Home() {
 
                   {/* Message Bubble */}
                   <div
-                    className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-md ${
+                    className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-md transition-colors ${
                       message.sender === 'user'
                         ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white'
+                        : isDarkMode
+                        ? 'bg-gray-800 text-gray-100 border border-gray-700'
                         : 'bg-white text-emerald-900 border border-emerald-100'
                     }`}
                     dir={detectRTL(message.text) ? 'rtl' : 'ltr'}
@@ -446,7 +541,11 @@ export default function Home() {
         </div>
 
         {/* Input Area */}
-        <div className="bg-white/80 backdrop-blur-md border-2 border-emerald-200 rounded-2xl shadow-lg p-4">
+        <div className={`backdrop-blur-md border-2 rounded-2xl shadow-lg p-4 transition-colors ${
+          isDarkMode
+            ? 'bg-gray-900/95 border-gray-700'
+            : 'bg-white/80 border-emerald-200'
+        }`}>
           <div className="flex gap-3">
             <textarea
               ref={inputRef}
@@ -454,7 +553,11 @@ export default function Home() {
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Posez votre question en français ou en arabe... اطرح سؤالك"
-              className="flex-1 resize-none bg-transparent border-none outline-none text-emerald-900 placeholder-emerald-400 text-sm max-h-32"
+              className={`flex-1 resize-none bg-transparent border-none outline-none text-sm max-h-32 transition-colors ${
+                isDarkMode
+                  ? 'text-gray-100 placeholder-gray-500'
+                  : 'text-emerald-900 placeholder-emerald-400'
+              }`}
               rows={1}
               disabled={isLoading}
               dir="auto"
@@ -472,13 +575,17 @@ export default function Home() {
         </div>
 
         {/* Disclaimer */}
-        <p className="text-xs text-center text-emerald-600 mt-4 px-4">
+        <p className={`text-xs text-center mt-4 px-4 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-emerald-600'}`}>
           Basé sur le Plan Comptable Marocain et la Loi de Finances
         </p>
       </main>
 
       {/* Footer */}
-      <footer className="bg-white/80 backdrop-blur-md border-t border-emerald-100 mt-auto">
+      <footer className={`backdrop-blur-md border-t mt-auto transition-colors ${
+        isDarkMode
+          ? 'bg-gray-900/95 border-gray-700'
+          : 'bg-white/80 border-emerald-100'
+      }`}>
         <div className="max-w-4xl mx-auto px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-4 text-xs">
             {/* Left: Beta + Copyright */}
@@ -489,12 +596,14 @@ export default function Home() {
                 </svg>
                 BÊTA
               </span>
-              <span className="text-emerald-600 hidden sm:inline">|</span>
+              <span className={`hidden sm:inline transition-colors ${isDarkMode ? 'text-gray-500' : 'text-emerald-600'}`}>|</span>
               <a
                 href="https://molaraiche.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-700 hover:text-emerald-900 font-medium hover:underline hidden sm:inline"
+                className={`font-medium hover:underline hidden sm:inline transition-colors ${
+                  isDarkMode ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-900'
+                }`}
               >
                 © {new Date().getFullYear()} Molaraiche
               </a>
@@ -502,12 +611,18 @@ export default function Home() {
 
             {/* Center: Sources */}
             <div className="flex items-center gap-2">
-              <span className="text-emerald-600 font-medium hidden md:inline">Sources:</span>
+              <span className={`font-medium hidden md:inline transition-colors ${isDarkMode ? 'text-gray-400' : 'text-emerald-600'}`}>
+                Sources:
+              </span>
               <a
                 href="https://drive.google.com/file/d/1C0XIL0RHSO_QBZHrSiu2SlFWh8jJ_r2M/view?usp=sharing"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md transition-colors"
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
+                  isDarkMode
+                    ? 'bg-gray-800 hover:bg-gray-700 text-emerald-400'
+                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+                }`}
                 title="Loi de Finances 2026"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -519,7 +634,11 @@ export default function Home() {
                 href="https://drive.google.com/file/d/1_HKe8QAXyls5QLqpV7YKaJT7H3P-fi5O/view?usp=sharing"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md transition-colors"
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
+                  isDarkMode
+                    ? 'bg-gray-800 hover:bg-gray-700 text-emerald-400'
+                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+                }`}
                 title="Plan Comptable Marocain"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -534,7 +653,9 @@ export default function Home() {
               href="https://molaraiche.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-emerald-700 hover:text-emerald-900 font-medium hover:underline sm:hidden"
+              className={`font-medium hover:underline sm:hidden transition-colors ${
+                isDarkMode ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-900'
+              }`}
             >
               © Molaraiche
             </a>
