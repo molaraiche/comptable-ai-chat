@@ -10,6 +10,11 @@ interface Message {
   timestamp: Date;
 }
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 const EXAMPLE_QUESTIONS = [
   "Comment calculer la TVA au Maroc ?",
   "Quelles sont les obligations fiscales d'une SARL ?",
@@ -25,48 +30,49 @@ export default function Home() {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Load messages from localStorage on mount
   useEffect(() => {
-    const savedMessages = localStorage.getItem('comptable-ai-messages');
-    if (savedMessages) {
-      try {
-        const parsed = JSON.parse(savedMessages);
-        // Convert timestamp strings back to Date objects
-        const messagesWithDates = parsed.map((msg: Message) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        }));
-        setMessages(messagesWithDates);
-      } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error loading messages from localStorage:', error);
+    const loadInitialData = () => {
+      const savedMessages = localStorage.getItem('comptable-ai-messages');
+      if (savedMessages) {
+        try {
+          const parsed = JSON.parse(savedMessages);
+          // Convert timestamp strings back to Date objects
+          const messagesWithDates = parsed.map((msg: Message) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          }));
+          setMessages(messagesWithDates);
+        } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error loading messages from localStorage:', error);
+          }
         }
       }
-    }
 
-    // Load dark mode preference
-    const savedDarkMode = localStorage.getItem('comptable-ai-dark-mode');
-    if (savedDarkMode === 'true') {
-      setIsDarkMode(true);
-    }
+      // Load dark mode preference
+      const savedDarkMode = localStorage.getItem('comptable-ai-dark-mode');
+      if (savedDarkMode === 'true') {
+        setIsDarkMode(true);
+      }
 
-    // Check if install prompt was dismissed
-    const installDismissed = localStorage.getItem('comptable-ai-install-dismissed');
-    if (installDismissed === 'true') {
-      setShowInstallPrompt(false);
-    }
+      // Check if install prompt was dismissed
+      const installDismissed = localStorage.getItem('comptable-ai-install-dismissed');
+      if (installDismissed === 'true') {
+        setShowInstallPrompt(false);
+      }
+    };
 
-    // Check remaining questions on mount
-    checkRemainingQuestions();
+    loadInitialData();
 
     // Listen for PWA install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
       
       // Only show if not dismissed
       const dismissed = localStorage.getItem('comptable-ai-install-dismissed');
@@ -82,6 +88,22 @@ export default function Home() {
     };
   }, []);
 
+  // Check remaining questions after mount
+  useEffect(() => {
+    const fetchLimit = async () => {
+      try {
+        const response = await fetch('/api/check-limit');
+        const data = await response.json();
+        setRemainingQuestions(data.remaining);
+      } catch (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error checking limit:', error);
+        }
+      }
+    };
+    void fetchLimit();
+  }, []);
+
   // Save dark mode preference
   useEffect(() => {
     localStorage.setItem('comptable-ai-dark-mode', isDarkMode.toString());
@@ -91,19 +113,6 @@ export default function Home() {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
-
-  // Check remaining questions
-  const checkRemainingQuestions = async () => {
-    try {
-      const response = await fetch('/api/check-limit');
-      const data = await response.json();
-      setRemainingQuestions(data.remaining);
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error checking limit:', error);
-      }
-    }
-  };
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -163,7 +172,7 @@ export default function Home() {
     }
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-${crypto.randomUUID()}`,
       text: question,
       sender: 'user',
       timestamp: new Date(),
@@ -202,7 +211,7 @@ export default function Home() {
       }
       
       const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: `ai-${crypto.randomUUID()}`,
         text: responseText,
         sender: 'ai',
         timestamp: new Date(),
@@ -225,7 +234,7 @@ export default function Home() {
       }
       
       const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: `error-${crypto.randomUUID()}`,
         text: errorText,
         sender: 'ai',
         timestamp: new Date(),
@@ -289,13 +298,13 @@ export default function Home() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-emerald-900">Effacer l'historique</h3>
+                <h3 className="text-lg font-bold text-emerald-900">Effacer l&apos;historique</h3>
                 <p className="text-sm text-emerald-600">Cette action est irréversible</p>
               </div>
             </div>
             
             <p className="text-emerald-800 mb-6 leading-relaxed">
-              Êtes-vous sûr de vouloir effacer tout l'historique des conversations ? Toutes vos questions et réponses seront définitivement supprimées.
+              Êtes-vous sûr de vouloir effacer tout l&apos;historique des conversations ? Toutes vos questions et réponses seront définitivement supprimées.
             </p>
             
             <div className="flex gap-3">
@@ -373,12 +382,12 @@ export default function Home() {
                 <h3 className={`font-bold text-sm mb-1 transition-colors ${
                   isDarkMode ? 'text-emerald-100' : 'text-emerald-900'
                 }`}>
-                  Installer l'application
+                  Installer l&apos;application
                 </h3>
                 <p className={`text-xs mb-3 transition-colors ${
                   isDarkMode ? 'text-gray-400' : 'text-emerald-600'
                 }`}>
-                  Accédez rapidement à Comptable AI depuis votre écran d'accueil
+                  Accédez rapidement à Comptable AI depuis votre écran d&apos;accueil
                 </p>
 
                 {/* Buttons */}
@@ -453,7 +462,7 @@ export default function Home() {
                     ? 'text-emerald-300 hover:text-emerald-200 hover:bg-gray-800'
                     : 'text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50'
                 }`}
-                title="Effacer l'historique"
+                title="Effacer l&apos;historique"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

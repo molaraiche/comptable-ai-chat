@@ -5,11 +5,13 @@
 This application implements several security measures to protect users and data:
 
 ### 1. Environment Variables
+
 - ✅ API URLs stored in `.env.local` (not committed to git)
 - ✅ `.env*` files are gitignored
 - ✅ Example template provided in `.env.example`
 
 ### 2. Security Headers
+
 - ✅ **X-Frame-Options**: Prevents clickjacking attacks
 - ✅ **X-Content-Type-Options**: Prevents MIME-type sniffing
 - ✅ **X-XSS-Protection**: Enables browser XSS protection
@@ -19,12 +21,14 @@ This application implements several security measures to protect users and data:
 - ✅ **Permissions-Policy**: Disables unnecessary browser features
 
 ### 3. Rate Limiting
+
 - ✅ 3 questions per IP address
 - ✅ 72-hour reset period
 - ✅ Server-side enforcement
 - ✅ Prevents API abuse
 
 ### 4. Data Privacy
+
 - ✅ No user authentication required
 - ✅ No personal data collected
 - ✅ Chat history stored locally (browser localStorage)
@@ -32,12 +36,14 @@ This application implements several security measures to protect users and data:
 - ✅ No tracking or analytics
 
 ### 5. API Security
+
 - ✅ CORS enabled for specific domain
 - ✅ HTTPS-only connections
 - ✅ No API keys exposed in frontend
 - ✅ Rate limiting on API calls
 
 ### 6. Frontend Security
+
 - ✅ React's built-in XSS protection
 - ✅ No `dangerouslySetInnerHTML` usage
 - ✅ Input sanitization via React
@@ -46,9 +52,10 @@ This application implements several security measures to protect users and data:
 ## 🚨 Reporting Security Issues
 
 If you discover a security vulnerability, please email:
-**security@molaraiche.com**
+**contact@molaraiche.com**
 
 Please include:
+
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact
@@ -59,6 +66,7 @@ Please include:
 ## 🔐 Best Practices for Deployment
 
 ### Environment Variables
+
 ```bash
 # Never commit these files:
 .env.local
@@ -73,12 +81,14 @@ Please include:
 ```
 
 ### Vercel Deployment
+
 1. Add environment variables in Vercel dashboard
 2. Set `NEXT_PUBLIC_API_URL` in project settings
 3. Enable automatic HTTPS
 4. Use Vercel's built-in DDoS protection
 
 ### Self-Hosting
+
 1. Use a reverse proxy (nginx, Caddy)
 2. Enable HTTPS with Let's Encrypt
 3. Configure firewall rules
@@ -102,24 +112,27 @@ Before deploying to production:
 
 ## 📋 Security Audit Log
 
-| Date | Version | Changes |
-|------|---------|---------|
-| 2025-04-27 | 1.0.0 | Initial security implementation |
+| Date       | Version | Changes                         |
+| ---------- | ------- | ------------------------------- |
+| 2025-04-27 | 1.0.0   | Initial security implementation |
 
 ## 🔄 Regular Maintenance
 
 ### Weekly
+
 - [ ] Check for dependency updates
 - [ ] Review rate limit logs
 - [ ] Monitor error logs
 
 ### Monthly
+
 - [ ] Run `npm audit`
 - [ ] Update dependencies
 - [ ] Review security headers
 - [ ] Check CSP violations
 
 ### Quarterly
+
 - [ ] Full security audit
 - [ ] Penetration testing
 - [ ] Review access logs
@@ -135,6 +148,7 @@ Before deploying to production:
 ## ⚖️ Compliance
 
 This application:
+
 - ✅ Does not collect personal data (GDPR compliant)
 - ✅ Uses localStorage (user's device only)
 - ✅ No cookies used
