@@ -1,94 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Redis } from '@upstash/redis';
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
 const MAX_QUESTIONS = 3;
-const RESET_INTERVAL = 72 * 60 * 60 * 1000; // 72 hours in milliseconds
+const RESET_INTERVAL = 72 * 60 * 60; // 72 hours in seconds
 
-interface RateLimitData {
-  count: number;
-  resetTime: number;
+function getIP(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  const realIP = request.headers.get('x-real-ip');
+  if (forwarded) return forwarded.split(',')[0].trim();
+  if (realIP) return realIP.trim();
+  return 'unknown';
 }
 
-const questionCounts = new Map<string, RateLimitData>();
+export async function GET(request: NextRequest) {
+  const ip = getIP(request);
+  const key = `rl:${ip}`;
 
-// Clean up expired entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, data] of questionCounts.entries()) {
-    if (now >= data.resetTime) {
-      questionCounts.delete(ip);
-    }
-  }
-}, 60 * 60 * 1000); // Clean up every hour
+  const count = (await redis.get<number>(key)) ?? 0;
+  const ttl = await redis.ttl(key);
+  const hoursUntilReset = ttl > 0 ? Math.ceil(ttl / 3600) : RESET_INTERVAL / 3600;
+
+  return NextResponse.json({
+    used: count,
+    remaining: Math.max(0, MAX_QUESTIONS - count),
+    total: MAX_QUESTIONS,
+    resetIn: hoursUntilReset,
+  });
+}
 
 export async function POST(request: NextRequest) {
-  // Get IP address
-  const forwarded = request.headers.get('x-forwarded-for');
-  const ip = forwarded ? forwarded.split(',')[0] : request.headers.get('x-real-ip') || 'unknown';
-  
-  const now = Date.now();
-  
-  // Get current data
-  let data = questionCounts.get(ip);
-  
-  // Reset if expired
-  if (!data || now >= data.resetTime) {
-    data = {
-      count: 0,
-      resetTime: now + RESET_INTERVAL
-    };
-    questionCounts.set(ip, data);
-  }
-  
-  // Check if limit reached
-  if (data.count >= MAX_QUESTIONS) {
-    const hoursUntilReset = Math.ceil((data.resetTime - now) / (60 * 60 * 1000));
+  const ip = getIP(request);
+  const key = `rl:${ip}`;
+
+  const count = (await redis.get<number>(key)) ?? 0;
+
+  if (count >= MAX_QUESTIONS) {
+    const ttl = await redis.ttl(key);
+    const hoursUntilReset = ttl > 0 ? Math.ceil(ttl / 3600) : 0;
     return NextResponse.json({
       allowed: false,
       remaining: 0,
       resetIn: hoursUntilReset,
-      message: `Limite atteinte. Réinitialisation dans ${hoursUntilReset}h.`
+      message: `Limite atteinte. Réinitialisation dans ${hoursUntilReset}h.`,
     });
   }
-  
-  // Increment count
-  data.count++;
-  questionCounts.set(ip, data);
-  
-  const hoursUntilReset = Math.ceil((data.resetTime - now) / (60 * 60 * 1000));
-  
+
+  // Increment and set TTL only on first question
+  const newCount = count + 1;
+  await redis.set(key, newCount, { ex: RESET_INTERVAL, keepTtl: count > 0 });
+
+  const ttl = await redis.ttl(key);
+  const hoursUntilReset = ttl > 0 ? Math.ceil(ttl / 3600) : RESET_INTERVAL / 3600;
+
   return NextResponse.json({
     allowed: true,
-    remaining: MAX_QUESTIONS - data.count,
+    remaining: Math.max(0, MAX_QUESTIONS - newCount),
     resetIn: hoursUntilReset,
-    message: 'Question autorisée'
-  });
-}
-
-export async function GET(request: NextRequest) {
-  // Get IP address
-  const forwarded = request.headers.get('x-forwarded-for');
-  const ip = forwarded ? forwarded.split(',')[0] : request.headers.get('x-real-ip') || 'unknown';
-  
-  const now = Date.now();
-  
-  // Get current data
-  let data = questionCounts.get(ip);
-  
-  // Reset if expired
-  if (!data || now >= data.resetTime) {
-    data = {
-      count: 0,
-      resetTime: now + RESET_INTERVAL
-    };
-    questionCounts.set(ip, data);
-  }
-  
-  const hoursUntilReset = Math.ceil((data.resetTime - now) / (60 * 60 * 1000));
-  
-  return NextResponse.json({
-    used: data.count,
-    remaining: MAX_QUESTIONS - data.count,
-    total: MAX_QUESTIONS,
-    resetIn: hoursUntilReset
+    message: 'Question autorisée',
   });
 }

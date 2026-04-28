@@ -680,7 +680,7 @@ export default function Home() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Posez votre question en français ou en arabe... اطرح سؤالك"
+              placeholder="Posez votre question en français ou en arabe... "
               className={`flex-1 resize-none bg-transparent border-none outline-none text-sm max-h-32 transition-colors ${
                 isDarkMode
                   ? 'text-gray-100 placeholder-gray-500'
