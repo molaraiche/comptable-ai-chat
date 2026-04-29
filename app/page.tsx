@@ -226,7 +226,7 @@ export default function Home() {
       let errorText = 'Désolé, une erreur s\'est produite. ';
       
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        errorText += 'Impossible de se connecter au serveur. Vérifiez votre connexion internet.';
+        errorText += 'Impossible de se connecter au serveur. Je règle ça dès que possible — envoyez-moi un message sur [![LinkedIn](https://img.shields.io/badge/LinkedIn-Contacter-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/molaraiche/) et je m\'en occupe immédiatement.';
       } else if (error instanceof Error) {
         errorText += 'Veuillez réessayer.';
       } else {

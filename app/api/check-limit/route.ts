@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
   // Increment and set TTL only on first question
   const newCount = count + 1;
-  await redis.set(key, newCount, { ex: RESET_INTERVAL, keepTtl: count > 0 });
+  await redis.set(key, newCount, count > 0 ? { keepTtl: true } : { ex: RESET_INTERVAL });
 
   const ttl = await redis.ttl(key);
   const hoursUntilReset = ttl > 0 ? Math.ceil(ttl / 3600) : RESET_INTERVAL / 3600;
