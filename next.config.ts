@@ -2,14 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  async rewrites() {
-    return [
-      {
-        source: '/api/ask',
-        destination: 'https://molaraiche-tester.app.n8n.cloud/webhook/ask',
-      },
-    ];
-  },
   async redirects() {
     return [
       {

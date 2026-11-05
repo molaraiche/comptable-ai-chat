@@ -66,10 +66,14 @@ This assistant is based on:
 Create a `.env.local` file in the root directory:
 
 ```bash
-NEXT_PUBLIC_API_URL=https://your-api-endpoint.com/webhook/ask
+OPENROUTER_API_KEY=...        # embeddings and answers
+PINECONE_API_KEY=...          # search index
+PINECONE_INDEX_HOST=...       # host of the plan-comptable index
+UPSTASH_REDIS_REST_URL=...    # question limit
+UPSTASH_REDIS_REST_TOKEN=...
 ```
 
-The application will use this environment variable to connect to your AI backend.
+Questions go to `/api/ask`, which searches the indexed sources and answers on the server. The keys never reach the browser.
 
 ### Expected API Format
 
@@ -160,7 +164,7 @@ See [.github/DEPLOYMENT.md](.github/DEPLOYMENT.md) for setup instructions.
 
 1. Click the button above
 2. Connect your GitHub account
-3. Add environment variable: `NEXT_PUBLIC_API_URL`
+3. Add the environment variables listed under Configuration
 4. Deploy!
 
 ### Manual Deployment
