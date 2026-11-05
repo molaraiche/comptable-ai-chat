@@ -156,21 +156,6 @@ export default function Home() {
     const question = questionText || input.trim();
     if (!question || isLoading) return;
 
-    // Check rate limit first
-    try {
-      const limitCheck = await fetch('/api/check-limit', { method: 'POST' });
-      const limitData = await limitCheck.json();
-      
-      if (!limitData.allowed) {
-        setShowLimitModal(true);
-        return;
-      }
-      
-      setRemainingQuestions(limitData.remaining);
-    } catch (error) {
-      console.error('Error checking limit:', error);
-    }
-
     const userMessage: Message = {
       id: `user-${crypto.randomUUID()}`,
       text: question,
@@ -183,33 +168,31 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'YOUR_API_ENDPOINT_HERE';
-      
-      const response = await fetch(apiUrl, {
+      const response = await fetch('/api/ask', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ question }),
-        mode: 'cors',
       });
+
+      if (response.status === 429) {
+        setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+        setRemainingQuestions(0);
+        setShowLimitModal(true);
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Check if response is JSON or plain text
-      const contentType = response.headers.get('content-type');
-      let responseText = '';
-      
-      if (contentType && contentType.includes('application/json')) {
-        const data = await response.json();
-        responseText = data.response || data.answer || data.message || 'Désolé, je n\'ai pas pu traiter votre demande.';
-      } else {
-        // Handle plain text response
-        responseText = await response.text();
+      const data = await response.json();
+      const responseText: string = data.answer || "Désolé, je n'ai pas pu traiter votre demande.";
+      if (typeof data.remaining === 'number') {
+        setRemainingQuestions(data.remaining);
       }
-      
+
       const aiMessage: Message = {
         id: `ai-${crypto.randomUUID()}`,
         text: responseText,
